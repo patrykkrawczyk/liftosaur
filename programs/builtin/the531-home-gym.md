@@ -3,7 +3,7 @@ id: the531-home-gym
 name: 5/3/1 Home Gym
 author: Community adaptation of Jim Wendler's 5/3/1
 url: "https://www.jimwendler.com/blogs/jimwendler-com/5-3-1-for-beginners"
-shortDescription: Three-day 5/3/1 with FSL, dumbbell and cable assistance, separate training maxes, and fixed assistance increments.
+shortDescription: Three-day 5/3/1 with FSL, 50-rep dumbbell and cable assistance, separate training maxes, and fixed assistance increments.
 isMultiweek: true
 tags: []
 frequency: 3
@@ -60,9 +60,9 @@ These rules change a separate TM. They do not overwrite the saved actual 1RM or 
 
 ## Assistance Progression
 
-Start with **3×10**, then progress to **3×11** and **3×12** after completing all three sets at the prescribed target and the same load. After completing 3×12, add the fixed increment below and return to 3×10. Leave about two good reps in reserve and log only clean reps. Split squats require both legs to meet the target.
+Perform **5×10 — 50 reps per assistance exercise** in every regular workout. After completing all five sets of ten clean reps at the same load, add the fixed increment below for the next appearance. Reps stay at ten as the load increases. Leave about two good reps in reserve and log only clean reps. Split squats require all five sets on both legs: **50 reps per leg**.
 
-| Exercise             | Fixed load increase after 3×12 |
+| Exercise             | Fixed load increase after 5×10 |
 | -------------------- | -----------------------------: |
 | Dumbbell bench press |              1 kg per dumbbell |
 | Dumbbell split squat |              1 kg per dumbbell |
@@ -71,9 +71,9 @@ Start with **3×10**, then progress to **3×11** and **3×12** after completing 
 | Triceps pushdown     |                           1 kg |
 | Cable crunch         |                           1 kg |
 
-Incomplete reps or sets hold the target. In Week 7, assistance becomes **2×10 at 80% of its normal load**, without advancing or reducing progression.
+Incomplete reps or sets hold the load at the same 5×10 target. In Week 7, assistance becomes **2×10 at 80% of its normal load**, without advancing or reducing progression.
 
-Configure the actual equipment loads in Liftosaur. The increment stays fixed as working weight grows; it does not scale as a percentage. If rounding prevents a heavier load after 3×12, the program holds the current weight and 12-rep target. Set that exercise's `step` to a constant the equipment can load. A small barbell plate does not automatically make a cable-stack increment available.
+Configure the actual equipment loads in Liftosaur. The increment stays fixed as working weight grows; it does not scale as a percentage. If rounding prevents a heavier load after 5×10, the program holds the current weight and 5×10 target. Set that exercise's `step` to a constant the equipment can load. A small barbell plate does not automatically make a cable-stack increment available.
 
 ## Starting Loads and Equipment Setup
 
@@ -81,7 +81,7 @@ Configure the actual equipment loads in Liftosaur. The increment stays fixed as 
 2. In the full-program text, replace `tm: 0kg` on the actual Squat, Bench Press, Deadlift and Overhead Press lines in Week 1. Leave the hidden `main` template's default alone.
 3. Alternatively, leave those values at zero only after checking each lift's saved app 1RM. On first use, the program initializes its TM from **85% of that saved value** and stores it separately.
 4. Configure barbell plates, dumbbell loads and cable increments. Enable separate left/right rep logging for Split Squat.
-5. On first use of an assistance exercise, choose a load that allows three sets of ten with about two good reps left. Enter it in the first-set weight prompt. The code copies it to the remaining sets and saves it after all three are completed at the same load. Initial zero/minimum-equipment loads are placeholders for this choice.
+5. On first use of an assistance exercise, choose a load that allows all five sets of ten with about two good reps left. This may require less weight than for three sets. Enter it in the first-set weight prompt. The code copies it to all remaining sets and saves it after all five are completed at the same load, applying the fixed increase if every set meets the target. Initial zero/minimum-equipment loads are placeholders for this choice.
 
 When importing from text, paste the entire Liftoscript block into a **new program's full-program text editor**. This is Liftoscript, not a JSON backup. After all 21 sessions, repeat the **same saved program** from Week 1 so updated TMs and assistance targets carry over. Re-importing the starter text resets that state.
 
@@ -91,7 +91,7 @@ Warm up separately before each main lift: empty bar for 5–10 reps, then, where
 
 Rest reminders are **three minutes for ascending main sets**, **two minutes for FSL**, and **75 seconds for assistance**, except **90 seconds for split squats**. Take longer when needed for clean reps. Week 7 uses 90 seconds for main lifts and 60 seconds for assistance, with split squats retaining 90 seconds.
 
-Regular sessions contain **25 working sets**. The app's working-set estimate excludes warm-ups and equipment changes; allow roughly **85–95 minutes in total** as an initial planning estimate. There is no enforced 90-minute cutoff. Alternating dumbbell presses and pulldowns may save time if the setup permits. If the time limit is reached, leave unfinished assistance incomplete in the log so its progression holds. Do not rush main-lift sets to beat the clock.
+Regular sessions contain **31 working sets**: 16 main/FSL sets and 15 assistance sets. The app estimates roughly **94–95 minutes for the working sets alone**, excluding warm-ups and equipment changes. Time the first few complete sessions to establish a realistic duration. There is no enforced 90-minute cutoff. Alternating dumbbell presses and pulldowns may save time if the setup permits. If you need to stop early, leave unfinished assistance incomplete in the log so its progression holds. Do not rush main-lift sets to beat the clock.
 
 <!-- faq -->
 
@@ -103,9 +103,9 @@ It is a home gym adaptation of 5/3/1 for Beginners. It keeps the main weekly wav
 
 Do the next program day when available. Calendar days do not advance the program, and there is no need to double up or skip ahead.
 
-### Why did my assistance weight stay the same after 3×12?
+### Why did my assistance weight stay the same after 5×10?
 
-All sets must meet the target at the same load, and split squats require both legs. If the proposed fixed increase rounds back to the current load, the program keeps the 12-rep target. Check the equipment settings and use a fixed `step` that can be loaded.
+All five sets must meet the target at the same load, and split squats require both legs. If the proposed fixed increase rounds back to the current load, the program holds that weight. The target stays 5×10. Check the equipment settings and use a fixed `step` that can be loaded.
 
 ### Do I need to enter my real maximum to use the program?
 
@@ -138,11 +138,12 @@ No max test is required. Set a conservative TM using recent clean lower-rep perf
 /// that lift's TM by 10%. A successful cycle adds 2.5kg upper / 5kg lower.
 /// A completely unlogged final lift is counted as an unfinished cycle when the
 /// next regular cycle is logged; any pending TM reduction applies to its weights.
-/// Assistance: 3x10 -> 3x11 -> 3x12, then add the exercise's FIXED step and
-/// return to 3x10. DB press/split squat: +1kg PER dumbbell. Pulldown/row: +2kg.
+/// Assistance: 5x10 (50 reps; per leg for split squats). Complete all five sets
+/// at the same load to add the FIXED step next time; reps always stay at ten.
+/// DB press/split squat: +1kg PER dumbbell. Pulldown/row: +2kg.
 /// Pushdown/crunch: +1kg. These increments do not grow with the working weight.
 /// Set each step to a loadable amount for that exercise's equipment. If rounding
-/// prevents an increase, the program holds 3x12; check the step/equipment setup.
+/// prevents an increase, the program holds the load at 5x10; check the setup.
 /// Leave about 2 reps in reserve; log only clean reps.
 /// Week 7 freezes progression: main 3x5 at 40/50/60% TM; assistance 2x10 at 80%.
 /// This is a personal adaptation, not an unmodified official Wendler template.
@@ -210,29 +211,24 @@ main / used: none / 1x5 0kg 180s, 1x5 0kg 180s, 1x5+ 0kg 180s, 5x5 0kg 120s / wa
   }
 ~}
 
-assist / used: none / 3x10 0kg 75s / warmup: none / progress: custom(load: 0kg, target: 10, step: 1kg, bothSides: 0) {~
-  if (week < 7 && numberOfSets == 3 && completedNumberOfSets == 3 && completedWeights[1] > 0kg && completedWeights == completedWeights[1]) {
+assist / used: none / 5x10 0kg 75s / warmup: none / progress: custom(load: 0kg, step: 1kg, bothSides: 0) {~
+  if (week < 7 && numberOfSets == 5 && completedNumberOfSets == 5 && completedWeights[1] > 0kg && completedWeights == completedWeights[1]) {
     state.load = completedWeights[1]
     var.good = completedReps >= reps
     if (state.bothSides == 1 && !(completedRepsLeft >= reps)) {
       var.good = 0
     }
     if (var.good) {
-      if (state.target >= 12) {
-        var.nextLoad = roundWeight(state.load + state.step)
-        if (var.nextLoad > state.load) {
-          state.load = var.nextLoad
-          state.target = 10
-        }
-      } else {
-        state.target += 1
+      var.nextLoad = roundWeight(state.load + state.step)
+      if (var.nextLoad > state.load) {
+        state.load = var.nextLoad
       }
     }
   }
 ~} / update: custom() {~
   if (setIndex == 0) {
     weights = week == 7 ? state.load * 0.8 : state.load
-    reps = week == 7 ? 10 : state.target
+    reps = 10
     minReps = reps
     askweights = 0
     if (state.load == 0kg) {
@@ -240,10 +236,7 @@ assist / used: none / 3x10 0kg 75s / warmup: none / progress: custom(load: 0kg, 
     }
   }
   if (setIndex == 1) {
-    weights[2] = completedWeights[1]
-    if (numberOfSets == 3) {
-      weights[3] = completedWeights[1]
-    }
+    weights = completedWeights[1]
   }
 ~}
 
@@ -279,7 +272,7 @@ Cable Crunch[1-7] / ...assist
 # Week 2
 ## Day 1
 main / 1x3 0kg 180s, 1x3 0kg 180s, 1x3+ 0kg 180s, 5x5 0kg 120s
-assist / 3x10 0kg 75s
+assist / 5x10 0kg 75s
 ## Day 2
 ## Day 3
 
@@ -287,21 +280,21 @@ assist / 3x10 0kg 75s
 ## Day 1
 // In Weeks 3 and 6, aim for at least 5 clean reps on the 1+ top set.
 main / 1x5 0kg 180s, 1x3 0kg 180s, 1x1+ 0kg 180s, 5x5 0kg 120s
-assist / 3x10 0kg 75s
+assist / 5x10 0kg 75s
 ## Day 2
 ## Day 3
 
 # Week 4
 ## Day 1
 main / 1x5 0kg 180s, 1x5 0kg 180s, 1x5+ 0kg 180s, 5x5 0kg 120s
-assist / 3x10 0kg 75s
+assist / 5x10 0kg 75s
 ## Day 2
 ## Day 3
 
 # Week 5
 ## Day 1
 main / 1x3 0kg 180s, 1x3 0kg 180s, 1x3+ 0kg 180s, 5x5 0kg 120s
-assist / 3x10 0kg 75s
+assist / 5x10 0kg 75s
 ## Day 2
 ## Day 3
 
@@ -309,7 +302,7 @@ assist / 3x10 0kg 75s
 ## Day 1
 // In Weeks 3 and 6, aim for at least 5 clean reps on the 1+ top set.
 main / 1x5 0kg 180s, 1x3 0kg 180s, 1x1+ 0kg 180s, 5x5 0kg 120s
-assist / 3x10 0kg 75s
+assist / 5x10 0kg 75s
 ## Day 2
 ## Day 3
 

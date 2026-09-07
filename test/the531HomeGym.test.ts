@@ -42,7 +42,7 @@ function programText(): string {
   return script![1];
 }
 
-function setup(options?: { fallbackTm?: boolean; assistanceLoad?: number; target?: number }): {
+function setup(options?: { fallbackTm?: boolean; assistanceLoad?: number }): {
   program: IProgram;
   settings: ISettings;
 } {
@@ -52,9 +52,6 @@ function setup(options?: { fallbackTm?: boolean; assistanceLoad?: number; target
   }
   if (options?.assistanceLoad != null) {
     text = text.replace("load: 0kg", `load: ${options.assistanceLoad}kg`);
-  }
-  if (options?.target != null) {
-    text = text.replace("target: 10", `target: ${options.target}`);
   }
   const { program } = PlannerTestUtils_get(text);
   const settings = { ...Settings_build(), units: "kg" as const };
@@ -145,6 +142,10 @@ describe("5/3/1 Home Gym built-in program", () => {
         record.entries.map((e) => Exercise_toKey(e.exercise)),
         `day ${day}`
       ).to.eql(expectedExercises);
+      expect(
+        record.entries.reduce((sum, e) => sum + e.sets.length, 0),
+        `work sets on day ${day}`
+      ).to.equal(week === 7 ? 12 : 31);
       for (const e of record.entries) {
         expect(e.warmupSets).to.eql([]);
         if (mainSteps[Exercise_toKey(e.exercise)] != null) {
@@ -162,7 +163,7 @@ describe("5/3/1 Home Gym built-in program", () => {
             week === 7 ? [false, false, false] : [false, false, true, false, false, false, false, false]
           );
         } else {
-          expect(e.sets.map((s) => s.reps)).to.eql(week === 7 ? [10, 10] : [10, 10, 10]);
+          expect(e.sets.map((s) => s.reps)).to.eql(week === 7 ? [10, 10] : [10, 10, 10, 10, 10]);
         }
       }
     }
@@ -208,13 +209,13 @@ describe("5/3/1 Home Gym built-in program", () => {
     expect(entry(next, "squat_barbell").sets[0].weight!.value).to.equal(110.5);
   });
 
-  it("asks for the first assistance load, copies it to remaining sets, and saves it after completion", () => {
+  it("asks for the first assistance load, copies it to all five sets, and increases it after completion", () => {
     const { program: initialProgram, settings } = setup();
     let program = initialProgram;
     const record = Program_nextHistoryRecord(program, settings, stats, 1);
     const index = record.entries.findIndex((e) => Exercise_toKey(e.exercise) === "benchPress_dumbbell");
     let assistance = record.entries[index];
-    expect(assistance.sets.map((s) => !!s.askWeight)).to.eql([true, false, false]);
+    expect(assistance.sets.map((s) => !!s.askWeight)).to.eql([true, false, false, false, false]);
     assistance.sets[0].completedWeight = Weight_build(20, "kg");
     assistance.sets[0].completedReps = 10;
     assistance.sets[0].isCompleted = true;
@@ -229,17 +230,18 @@ describe("5/3/1 Home Gym built-in program", () => {
       settings,
       stats
     );
-    expect(assistance.sets.slice(1).map((s) => s.weight!.value)).to.eql([20, 20]);
+    expect(assistance.sets[0].completedWeight).to.eql(Weight_build(20, "kg"));
+    expect(assistance.sets.slice(1).map((s) => s.weight!.value)).to.eql([20, 20, 20, 20]);
     record.entries[index] = assistance;
     complete(record);
     program = finish(program, settings, record);
     const next = entry(Program_nextHistoryRecord(program, settings, stats, 3), "benchPress_dumbbell");
-    expect(next.sets.map((s) => s.weight!.value)).to.eql([20, 20, 20]);
-    expect(next.sets.map((s) => s.reps)).to.eql([11, 11, 11]);
+    expect(next.sets.map((s) => s.weight!.value)).to.eql([21, 21, 21, 21, 21]);
+    expect(next.sets.map((s) => s.reps)).to.eql([10, 10, 10, 10, 10]);
     expect(next.sets.some((s) => s.askWeight)).to.equal(false);
   });
 
-  it("uses fixed exercise-specific steps after 10, 11, and 12 reps, including a second load increase", () => {
+  it("adds the fixed exercise-specific step after every successful 5x10 without increasing the step or rep target", () => {
     const { program: initialProgram, settings } = setup({ assistanceLoad: 20 });
     let program = initialProgram;
     for (let occurrence = 0; occurrence < 6; occurrence++) {
@@ -247,51 +249,58 @@ describe("5/3/1 Home Gym built-in program", () => {
         const record = Program_nextHistoryRecord(program, settings, stats, day);
         for (const e of record.entries.slice(2)) {
           const step = assistanceSteps[Exercise_toKey(e.exercise)];
-          expect(e.sets.map((s) => s.reps)).to.eql(Array(3).fill(10 + (occurrence % 3)));
-          expect(e.sets.map((s) => s.weight!.value)).to.eql(Array(3).fill(20 + Math.floor(occurrence / 3) * step));
+          expect(e.sets.map((s) => s.reps)).to.eql(Array(5).fill(10));
+          expect(e.sets.map((s) => s.weight!.value)).to.eql(Array(5).fill(20 + occurrence * step));
         }
         complete(record);
         program = finish(program, settings, record);
       }
     }
     for (const [key, step] of Object.entries(assistanceSteps)) {
-      expect(state(program, settings, key).load).to.eql(Weight_build(20 + 2 * step, "kg"));
-      expect(state(program, settings, key).target).to.equal(10);
+      expect(state(program, settings, key).load).to.eql(Weight_build(20 + 6 * step, "kg"));
     }
   });
 
-  it("holds 3x12 when equipment rounding prevents the requested increase", () => {
-    const { program: initialProgram, settings } = setup({ assistanceLoad: 20, target: 12 });
+  it("holds the same 5x10 load when equipment rounding prevents the requested increase", () => {
+    const { program: initialProgram, settings } = setup({ assistanceLoad: 20 });
     let program = initialProgram;
     settings.exerciseData.benchPress_dumbbell!.rounding = 5;
     program = workout(program, settings, 1);
     expect(state(program, settings, "benchPress_dumbbell").load).to.eql(Weight_build(20, "kg"));
-    expect(state(program, settings, "benchPress_dumbbell").target).to.equal(12);
+    const held = entry(Program_nextHistoryRecord(program, settings, stats, 3), "benchPress_dumbbell");
+    expect(held.sets.map((s) => s.reps)).to.eql([10, 10, 10, 10, 10]);
+    expect(held.sets.map((s) => s.weight!.value)).to.eql([20, 20, 20, 20, 20]);
     settings.exerciseData.benchPress_dumbbell!.rounding = 1;
     program = workout(program, settings, 3);
     expect(state(program, settings, "benchPress_dumbbell").load).to.eql(Weight_build(21, "kg"));
-    expect(state(program, settings, "benchPress_dumbbell").target).to.equal(10);
   });
 
-  for (const failure of ["incomplete", "unequal loads", "short reps", "extra set"] as const) {
+  for (const failure of [
+    "incomplete fifth set",
+    "unequal loads",
+    "short reps",
+    "removed fifth set",
+    "extra set",
+  ] as const) {
     it(`holds assistance progression after ${failure}`, () => {
       const { program, settings } = setup({ assistanceLoad: 20 });
       const next = workout(program, settings, 1, (record) => {
         const e = entry(record, "benchPress_dumbbell");
-        if (failure === "incomplete") {
-          e.sets[2].isCompleted = false;
-          e.sets[2].completedReps = undefined;
-          e.sets[2].completedWeight = undefined;
+        if (failure === "incomplete fifth set") {
+          e.sets[4].isCompleted = false;
+          e.sets[4].completedReps = undefined;
+          e.sets[4].completedWeight = undefined;
         } else if (failure === "unequal loads") {
-          e.sets[1].completedWeight = Weight_build(21, "kg");
+          e.sets[4].completedWeight = Weight_build(21, "kg");
         } else if (failure === "short reps") {
-          e.sets[1].completedReps = 9;
+          e.sets[4].completedReps = 9;
+        } else if (failure === "removed fifth set") {
+          e.sets.pop();
         } else {
-          e.sets.push({ ...e.sets[2], id: "extra", index: 3 });
+          e.sets.push({ ...e.sets[4], id: "extra", index: 5 });
         }
       });
       expect(state(next, settings, "benchPress_dumbbell").load).to.eql(Weight_build(20, "kg"));
-      expect(state(next, settings, "benchPress_dumbbell").target).to.equal(10);
     });
   }
 
@@ -299,7 +308,7 @@ describe("5/3/1 Home Gym built-in program", () => {
     it(`requires both split-squat sides: ${side}`, () => {
       const { program, settings } = setup({ assistanceLoad: 20 });
       const next = workout(program, settings, 2, (record) => {
-        const set = entry(record, "splitSquat_dumbbell").sets[1];
+        const set = entry(record, "splitSquat_dumbbell").sets[4];
         expect(set.isUnilateral).to.equal(true);
         if (side === "missing left") {
           set.completedRepsLeft = undefined;
@@ -309,7 +318,9 @@ describe("5/3/1 Home Gym built-in program", () => {
           set.completedReps = 9;
         }
       });
-      expect(state(next, settings, "splitSquat_dumbbell").target).to.equal(side === "both complete" ? 11 : 10);
+      expect(state(next, settings, "splitSquat_dumbbell").load).to.eql(
+        Weight_build(side === "both complete" ? 21 : 20, "kg")
+      );
     });
   }
 
@@ -434,7 +445,7 @@ describe("5/3/1 Home Gym built-in program", () => {
   });
 
   it("preserves main and assistance state through the lighter week", () => {
-    const { program: initialProgram, settings } = setup({ assistanceLoad: 20, target: 12 });
+    const { program: initialProgram, settings } = setup({ assistanceLoad: 20 });
     let program = initialProgram;
     const keys = [...Object.keys(mainSteps), ...Object.keys(assistanceSteps)];
     const before = Object.fromEntries(keys.map((key) => [key, state(program, settings, key)]));
