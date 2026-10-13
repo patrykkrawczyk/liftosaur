@@ -50,12 +50,11 @@ function setup(options?: { fallbackTm?: boolean; assistanceLoad?: number; badCyc
   program: IProgram;
   settings: ISettings;
 } {
-  // The shipped file carries the author's TMs; tests use a round 100kg, or 0kg to exercise the 1RM fallback.
-  const text0 = programText().replace(/tm: [0-9.]+kg/g, options?.fallbackTm ? "tm: 0kg" : "tm: 100kg");
-  let text = text0;
-  if (options?.assistanceLoad != null) {
-    text = text.replace("load: 0kg", `load: ${options.assistanceLoad}kg`);
-  }
+  // The shipped file carries the author's TMs and assistance loads; tests use a round 100kg TM (or 0kg to
+  // exercise the 1RM fallback) and one assistance load for every exercise (0kg exercises the first-use prompt).
+  let text = programText()
+    .replace(/tm: [0-9.]+kg/g, options?.fallbackTm ? "tm: 0kg" : "tm: 100kg")
+    .replace(/load: [0-9.]+kg/g, `load: ${options?.assistanceLoad ?? 0}kg`);
   if (options?.badCycles != null) {
     text = text.replace("badCycles: 0", `badCycles: ${options.badCycles}`);
   }
@@ -728,27 +727,65 @@ describe("5/3/1 Home Gym built-in program", () => {
     expect(state(program, settings, "squat_barbell").sessions).to.equal(1);
   });
 
-  for (const scenario of ["set 1 lighter", "every set lighter", "every set short"] as const) {
-    it(`holds the assistance load and keeps prescribing it when ${scenario}`, () => {
+  it("holds the assistance load and keeps prescribing it when only set 1 is logged lighter", () => {
+    const { program, settings } = setup({ assistanceLoad: 20 });
+    const next = workout(program, settings, 1, (record) => {
+      entry(record, "benchPress_dumbbell").sets[0].completedWeight = Weight_build(18, "kg");
+    });
+    expect(state(next, settings, "benchPress_dumbbell").load).to.eql(Weight_build(20, "kg"));
+    const shown = entry(Program_nextHistoryRecord(next, settings, stats, 3), "benchPress_dumbbell");
+    expect(shown.sets.map((s) => s.weight!.value)).to.eql([20, 20, 20, 20, 20]);
+  });
+
+  for (const [scenario, weight, reps, expected] of [
+    ["every set lighter with all reps", 18, 10, 19],
+    ["every set lighter and short", 18, 9, 18],
+    ["every set heavier with all reps", 22, 10, 23],
+    ["every set heavier and short", 22, 9, 22],
+  ] as const) {
+    it(`re-bases the assistance load on purpose when ${scenario}`, () => {
       const { program, settings } = setup({ assistanceLoad: 20 });
       const next = workout(program, settings, 1, (record) => {
-        const e = entry(record, "benchPress_dumbbell");
-        if (scenario === "set 1 lighter") {
-          e.sets[0].completedWeight = Weight_build(18, "kg");
-        } else {
-          for (const set of e.sets) {
-            set.completedWeight = Weight_build(18, "kg");
-            if (scenario === "every set short") {
-              set.completedReps = 9;
-            }
-          }
+        for (const set of entry(record, "benchPress_dumbbell").sets) {
+          set.completedWeight = Weight_build(weight, "kg");
+          set.completedReps = reps;
         }
       });
-      expect(state(next, settings, "benchPress_dumbbell").load).to.eql(Weight_build(20, "kg"));
+      expect(state(next, settings, "benchPress_dumbbell").load).to.eql(Weight_build(expected, "kg"));
       const shown = entry(Program_nextHistoryRecord(next, settings, stats, 3), "benchPress_dumbbell");
-      expect(shown.sets.map((s) => s.weight!.value)).to.eql([20, 20, 20, 20, 20]);
+      expect(shown.sets.map((s) => s.weight!.value)).to.eql(Array(5).fill(expected));
     });
   }
+
+  it("ships a starting load for every assistance exercise", () => {
+    const { program } = PlannerTestUtils_get(programText());
+    const settings = { ...Settings_build(), units: "kg" as const };
+    const loads = Object.fromEntries(
+      Object.keys(assistanceSteps).map((key) => [key, (state(program, settings, key).load as IWeight).value])
+    );
+    expect(loads).to.eql({
+      benchPress_dumbbell: 16,
+      latPulldown_cable: 45,
+      cableCrunch_cable: 25,
+      seatedRow_cable: 45,
+      tricepsPushdown_cable: 20,
+      splitSquat_dumbbell: 10,
+    });
+    for (const day of [1, 2]) {
+      const record = Program_nextHistoryRecord(program, settings, stats, day);
+      for (const e of record.entries.slice(2)) {
+        const key = Exercise_toKey(e.exercise);
+        expect(
+          e.sets.map((s) => s.weight!.value),
+          key
+        ).to.eql(Array(5).fill(loads[key]));
+        expect(
+          e.sets.some((s) => s.askWeight),
+          key
+        ).to.equal(false);
+      }
+    }
+  });
 
   it("progresses by exactly one step when set 1 is logged heavier than prescribed", () => {
     const { program, settings } = setup({ assistanceLoad: 20 });
@@ -890,7 +927,7 @@ describe("5/3/1 Home Gym built-in program", () => {
       .replace(/step: 2\.5kg/g, "step: 5lb")
       .replace(/step: 2kg/g, "step: 5lb")
       .replace(/step: 1kg/g, "step: 2.5lb")
-      .replace("load: 0kg", "load: 0lb");
+      .replace(/load: [0-9.]+kg/g, "load: 0lb");
     const { program: initialProgram } = PlannerTestUtils_get(text);
     let program = initialProgram;
     const settings = { ...Settings_build(), units: "lb" as const };
